@@ -45,10 +45,10 @@ namespace CatAndMouseGame
                 return;
             }
 
-            if (!int.TryParse(lines[0].Trim(), out int parsedSize) || parsedSize <= 0)
+            if (!int.TryParse(lines[0].Trim(), out int parsedSize) || parsedSize < 1 || parsedSize > 10000)
             {
-                Console.WriteLine("\nОшибка: Первая строка файла должна содержать размер поля!");
-                File.AppendAllText(OutFile, "\n[ERROR]: Game failed — missing or invalid board size in the first line.");
+                Console.WriteLine("\nОшибка: Размер поля должен быть от 1 до 10000!");
+                File.AppendAllText(OutFile, "\n[ERROR]: Board size must be between 1 and 10000.");
                 return;
             }
 
