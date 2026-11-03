@@ -28,18 +28,27 @@ namespace CatAndMouseGame
 
         public void Run()
         {
-            File.WriteAllText(OutFile, "Cat and Mouse\n\n");
+            File.WriteAllText(OutFile, "Cat and Mouse\n\nCat   Mouse Distance\n-------------------\n");
 
             if (!File.Exists(InputFile))
             {
                 Console.WriteLine($"Ошибка: Файл {InputFile} не найден!");
+                File.AppendAllText(OutFile, $"\n[ERROR]: File {InputFile} not found!");
                 return;
             }
 
             string[] lines = File.ReadAllLines(InputFile);
-            if (lines.Length == 0 || !int.TryParse(lines[0].Trim(), out int parsedSize) || parsedSize <= 0)
+            if (lines.Length == 0)
             {
-                Console.WriteLine("Ошибка: неверный размер игрового поля!");
+                Console.WriteLine($"Ошибка: Файл {InputFile} пуст!");
+                File.AppendAllText(OutFile, "\n[ERROR]: File is empty!");
+                return;
+            }
+
+            if (!int.TryParse(lines[0].Trim(), out int parsedSize) || parsedSize <= 0)
+            {
+                Console.WriteLine("\nОшибка: Первая строка файла должна содержать размер поля!");
+                File.AppendAllText(OutFile, "\n[ERROR]: Game failed — missing or invalid board size in the first line.");
                 return;
             }
 
@@ -50,35 +59,61 @@ namespace CatAndMouseGame
                 if (state == GameState.End) break;
 
                 string[] parts = line.Trim().Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length < 2 || !int.TryParse(parts[1], out int steps))
-                    continue;
+                if (parts.Length == 0) continue;
 
                 char command = parts[0].ToUpper()[0];
-                if (command == 'M')
-                    mouse.Move(steps, size);
-                else if (command == 'C')
-                    cat.Move(steps, size);
 
-                if (cat.state == State.Playing && mouse.state == State.Playing && cat.location == mouse.location)
+                if ((command == 'M' || command == 'C') && parts.Length > 1 && int.TryParse(parts[1], out int steps))
                 {
-                    cat.state = State.Winner;
-                    mouse.state = State.Looser;
-                    state = GameState.End;
+                    if (command == 'M') mouse.Move(steps, size);
+                    else if (command == 'C') cat.Move(steps, size);
+
+                    if (cat.state == State.Playing && mouse.state == State.Playing && cat.location == mouse.location)
+                    {
+                        cat.state = State.Winner;
+                        mouse.state = State.Looser;
+                        state = GameState.End;
+                    }
+                }
+                else if (command == 'P')
+                {
+                    DoPrintCommand();
                 }
             }
 
+            state = GameState.End;
+
             if (cat.state == State.NotInGame || mouse.state == State.NotInGame)
             {
-                Console.WriteLine("Ошибка: не заданы начальные позиции обоих игроков!");
+                Console.WriteLine("\nОшибка: Игра невозможна! В файле отсутствует информация об одном из игроков.");
+                File.AppendAllText(OutFile, "\n[ERROR]: Game failed — missing player position data.");
                 return;
             }
 
-            string result = mouse.state == State.Looser
-                ? $"Mouse caught at: {cat.location}\n"
-                : "Mouse evaded Cat\n";
+            string footer = "-------------------\n\n\nDistance traveled: Mouse Cat\n" +
+                           $" {mouse.distanceTraveled,-14} {cat.distanceTraveled}\n\n" +
+                           (mouse.state == State.Looser ? $"Mouse caught at: {cat.location}\n" : "Mouse evaded Cat\n");
 
-            File.AppendAllText(OutFile,
-                $"Distance traveled: Mouse Cat\n {mouse.distanceTraveled,-14} {cat.distanceTraveled}\n\n{result}");
+            File.AppendAllText(OutFile, footer);
+        }
+
+        private void DoPrintCommand()
+        {
+            string catStr = (cat.state == State.NotInGame) ? "??" : cat.location.ToString();
+            string mouseStr = (mouse.state == State.NotInGame) ? "??" : mouse.location.ToString();
+
+            int dist = GetDistance();
+            string distStr = (dist == -1) ? "??" : dist.ToString();
+
+            File.AppendAllText(OutFile, $" {catStr,-5} {mouseStr,-5} {distStr}\n");
+        }
+
+        private int GetDistance()
+        {
+            if (cat.state == State.NotInGame || mouse.state == State.NotInGame)
+                return -1;
+
+            return Math.Abs(cat.location - mouse.location);
         }
     }
 }
